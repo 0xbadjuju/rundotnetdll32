@@ -24,11 +24,19 @@ namespace rundotnetdll32
                     String[] arguments = args.Skip(1).Take(args.Length - 1).ToArray();
 
                     Assembly assembly = Assembly.LoadFile(Path.GetFullPath(fileName));
-                    Type type = assembly.GetType(assembly.FullName.Split(',')[0] + "." + className);
-                    MethodInfo methodInfo = type.GetMethod(method);
-                    String returnValue = (String)methodInfo.Invoke(null, arguments);
-
-                    Console.WriteLine(returnValue);
+                    String[] namespaceNames = assembly.GetTypes().Select(n => n.Namespace).Distinct().ToArray();
+                    foreach (String space in namespaceNames)
+                    {
+                        try
+                        {
+                            Type type = assembly.GetType(space + "." + className);
+                            MethodInfo methodInfo = type.GetMethod(method);
+                            Console.WriteLine((String)methodInfo.Invoke(null, arguments));
+                        }
+                        catch
+                        {
+                        }
+                    }
                 }
                 else
                 {
