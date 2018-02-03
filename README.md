@@ -15,7 +15,7 @@
   * rundotnetdll32.exe WheresMyImplant.dll classes
 * ### List all classes in namespace Implant
   * rundotnetdll32.exe WheresMyImplant.dll classes Implant
-* ### List all methods in all namespaces
+* ### List all methods in all namespaces and classes
   * rundotnetdll32.exe WheresMyImplant.dll methods
 * ### List all methods in namespace Implant
   * rundotnetdll32.exe WheresMyImplant.dll methods Implant
