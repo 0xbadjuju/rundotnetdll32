@@ -16,7 +16,7 @@ namespace rundotnetdll32
             Assembly assembly = null;
             if (args.Length >= 1)
             {
-                assembly = Assembly.LoadFile(Path.GetFullPath(args[0]));
+                assembly = Assembly.LoadFile(Path.GetFullPath(args[0].Split(',')[0]));
             }
             else
             {
@@ -24,26 +24,39 @@ namespace rundotnetdll32
                 Console.WriteLine("rundotnetdll32.exe list <namespaces|classes|methods> <namespace> <class>");
             }
 
-            if (args.Length == 2)
+            if (args.Length <= 2)
             {
                 String[] dllArgs = args[0].Split(',');
-                if (dllArgs.Length == 3)
+                if (dllArgs.Length >= 3)
                 {
-                    String className = dllArgs[1];
-                    String method = dllArgs[2];
-                    String[] arguments = args.Skip(1).Take(args.Length - 1).ToArray();
+                    String nameSpace = dllArgs[1];
+                    String className = dllArgs[2];
+                    String method = dllArgs[3];
+                    String[] arguments = new String[0];
+                    if (2 == args.Length)
+                    {
+                        arguments = args.Skip(1).Take(args.Length - 1).ToArray()[0].Split(',');
+                    }
 
-                    String[] namespaceNames = assembly.GetTypes().Select(n => n.Namespace).Distinct().ToArray();
+                    Console.WriteLine("Namespace: {0}\nClass: {1}\nMethod: {2}\nArguments: {3}", 
+                        nameSpace, className, method, String.Join(" ",arguments));
+
+                    String[] namespaceNames = assembly.GetTypes().Select(t => t.Namespace).Distinct().ToArray(); 
                     foreach (String space in namespaceNames)
                     {
+                        if (space != nameSpace)
+                        {
+                            continue;
+                        }
                         try
                         {
                             Type type = assembly.GetType(space + "." + className);
                             MethodInfo methodInfo = type.GetMethod(method);
                             Console.WriteLine((String)methodInfo.Invoke(null, arguments));
                         }
-                        catch
+                        catch (Exception error)
                         {
+                            Console.WriteLine(error);
                         }
                     }
                 }

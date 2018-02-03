@@ -1,0 +1,5 @@
+C:\Users\0xbadjuju\Documents\GitHub\rundotnetdll32\rundotnetdll32\bin\Release\rundotnetdll32.exe
+C:\Users\0xbadjuju\Documents\GitHub\rundotnetdll32\rundotnetdll32\bin\Release\rundotnetdll32.pdb
+C:\Users\0xbadjuju\Documents\GitHub\rundotnetdll32\rundotnetdll32\obj\Release\ResolveAssemblyReference.cache
+C:\Users\0xbadjuju\Documents\GitHub\rundotnetdll32\rundotnetdll32\obj\Release\rundotnetdll32.exe
+C:\Users\0xbadjuju\Documents\GitHub\rundotnetdll32\rundotnetdll32\obj\Release\rundotnetdll32.pdb
