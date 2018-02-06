@@ -7,7 +7,7 @@
   * rundotnetdll32.exe WheresMyImplant.dll,Implant,RunCMD whoami
 
 ### List the contents of and assembly
-*rundotnetdll32.exe list assembly.dll <namespaces|classes|methods> <namespace> <class>*
+*rundotnetdll32.exe assembly.dll list <namespaces|classes|methods> <namespace> <class>*
   
 * ### Listing namespaces
   * rundotnetdll32.exe WheresMyImplant.dll list namespaces
