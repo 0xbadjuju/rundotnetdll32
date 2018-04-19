@@ -16,12 +16,19 @@ namespace rundotnetdll32
             Assembly assembly = null;
             if (args.Length >= 1)
             {
+                String file = Path.GetFullPath(args[0].Split(',')[0]);
+                if (!File.Exists(file))
+                {
+                    Console.WriteLine("[-] File Not Found");
+                    return;
+                }
                 assembly = Assembly.LoadFile(Path.GetFullPath(args[0].Split(',')[0]));
             }
             else
             {
                 Console.WriteLine("rundotnetdll32.exe assembly.dll,class,method arguments");
                 Console.WriteLine("rundotnetdll32.exe list <namespaces|classes|methods> <namespace> <class>");
+                return;
             }
 
             if (args.Length <= 2)
@@ -38,8 +45,10 @@ namespace rundotnetdll32
                         arguments = args.Skip(1).Take(args.Length - 1).ToArray()[0].Split(',');
                     }
 
+                    Console.WriteLine("----------");
                     Console.WriteLine("Namespace: {0}\nClass: {1}\nMethod: {2}\nArguments: {3}", 
                         nameSpace, className, method, String.Join(" ",arguments));
+                    Console.WriteLine("----------");
 
                     String[] namespaceNames = assembly.GetTypes().Select(t => t.Namespace).Distinct().ToArray(); 
                     foreach (String space in namespaceNames)
@@ -112,6 +121,7 @@ namespace rundotnetdll32
             }
         }
 
+        #region listProperties
         ////////////////////////////////////////////////////////////////////////////////
         //
         ////////////////////////////////////////////////////////////////////////////////
@@ -253,5 +263,6 @@ namespace rundotnetdll32
                 }
             }
         }
+        #endregion
     }
 }
