@@ -1,10 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Text.RegularExpressions;
 
 namespace rundotnetdll32
 {
@@ -12,6 +9,32 @@ namespace rundotnetdll32
     {
 
         static void Main(string[] args)
+        {
+            try
+            {
+                RunApp(args);
+            }
+            catch(ReflectionTypeLoadException ex)
+            {
+                Console.WriteLine("[-] Unhandled ReflectionTypeLoadException occurred");
+                Console.WriteLine(ex);
+                if(ex.LoaderExceptions != null && ex.LoaderExceptions.Length > 0)
+                {
+                    foreach(var lex in ex.LoaderExceptions)
+                    {
+                        Console.WriteLine("[-] Loader Exception");
+                        Console.WriteLine(lex);
+                    }
+                }
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine("[-] Unhandled exception occurred");
+                Console.WriteLine(ex);
+            }
+        }
+
+            static void RunApp(string[] args)
         {
             Assembly assembly = null;
             if (args.Length >= 1)
@@ -22,7 +45,28 @@ namespace rundotnetdll32
                     Console.WriteLine("[-] File Not Found");
                     return;
                 }
-                assembly = Assembly.LoadFile(Path.GetFullPath(args[0].Split(',')[0]));
+                try
+                {
+                    assembly = Assembly.LoadFile(Path.GetFullPath(args[0].Split(',')[0]));
+                }
+                catch(FileLoadException ex)
+                {
+                    Console.WriteLine("[-] File could not be loaded");
+                    Console.WriteLine(ex);
+                    return;
+                }
+                catch(BadImageFormatException ex)
+                {
+                    Console.WriteLine("[-] File uses incorrect framework version");
+                    Console.WriteLine(ex);
+                    return;
+                }
+                catch(Exception ex)
+                {
+                    Console.WriteLine("[-] Error occured loading file");
+                    Console.WriteLine(ex);
+                    return;
+                }
             }
             else
             {
@@ -151,8 +195,9 @@ namespace rundotnetdll32
                         Console.WriteLine("\t{0}", t.Name);
                     }
                 }
-                catch
+                catch(Exception error)
                 {
+                    Console.WriteLine(error);
                 }
             }
         }
@@ -174,8 +219,9 @@ namespace rundotnetdll32
                         Console.WriteLine("\t{0}", t.Name);
                     }
                 }
-                catch
+                catch(Exception error)
                 {
+                    Console.WriteLine(error);
                 }
             }
         }
@@ -201,8 +247,9 @@ namespace rundotnetdll32
                         }
                     }
                 }
-                catch
+                catch(Exception error)
                 {
+                    Console.WriteLine(error);
                 }
             }
         }
@@ -228,8 +275,9 @@ namespace rundotnetdll32
                         }
                     }
                 }
-                catch
+                catch(Exception error)
                 {
+                    Console.WriteLine(error);
                 }
             }
         }
@@ -258,8 +306,9 @@ namespace rundotnetdll32
                         }
                     }
                 }
-                catch
+                catch(Exception error)
                 {
+                    Console.WriteLine(error);
                 }
             }
         }
