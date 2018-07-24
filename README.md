@@ -1,25 +1,24 @@
 # RunDotNetDll32 - Execute a .net dll method from the command line
 
-### Execute a static method
+### Execute a static method with Assembly.LoadFile
 *rundotnetdll32.exe assembly.dll,class,method arguments*
 
-* #### Execute Implant.RunCMD method <br>
-  * rundotnetdll32.exe WheresMyImplant.dll,Implant,RunCMD whoami
+### Execute a static method with Type.GetType
+*rundotnetdll32.exe -t assembly.dll,class,method arguments*
 
-### List the contents of and assembly
-*rundotnetdll32.exe assembly.dll list <namespaces|classes|methods> <namespace> <class>*
+* #### Execute Implant.RunCMD method <br>
+  * rundotnetdll32.exe -t WheresMyImplant.dll,Implant,RunCMD whoami
+
+### Listing the contents of and assembly
+
+* #### Listing namespaces in an assembly
+  * rundotnetdll32.exe -l WheresMyImplant.dll
   
-* ### Listing namespaces
-  * rundotnetdll32.exe WheresMyImplant.dll list namespaces
-* ### Listing classes
-  * **List all classes in all namespaces**
-    * rundotnetdll32.exe WheresMyImplant.dll list classes
-  * **List all classes in namespace Implant**
-    * rundotnetdll32.exe WheresMyImplant.dll list classes Implant
-* ### Listing methods
-  * **List all methods in all namespaces and classes**
-    * rundotnetdll32.exe WheresMyImplant.dll list methods
-  * **List all methods in namespace Implant**
-    * rundotnetdll32.exe WheresMyImplant.dll list methods Implant
-  * **List all methods in namespace Implant and in class EmpireStager**
-    * rundotnetdll32.exe WheresMyImplant.dll list methods Implant EmpireStager
+* #### Listing classes in a namespace
+  * rundotnetdll32.exe -l WheresMyImplant.dll -n WheresMyImplant
+    
+* #### Listing methods in a class
+  * rundotnetdll32.exe -l WheresMyImplant.dll -n WheresMyImplant -c Implant
+    
+* #### Listing parameters for a method
+  * rundotnetdll32.exe -l WheresMyImplant.dll -n WheresMyImplant -c Implant -m RunPowerShell
