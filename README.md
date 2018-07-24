@@ -1,4 +1,4 @@
-# RunDotNetDll32 - Execute a .net dll method from the command line
+# RunDotNetDll32 - Execute a .Net DLL method from the command line
 
 ### Execute a static method with Assembly.LoadFile
 *rundotnetdll32.exe assembly.dll,class,method arguments*
