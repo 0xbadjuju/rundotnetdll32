@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+
+using Mono.Options;
 
 namespace rundotnetdll32
 {
@@ -17,211 +20,254 @@ namespace rundotnetdll32
             catch(ReflectionTypeLoadException ex)
             {
                 Console.WriteLine("[-] Unhandled ReflectionTypeLoadException occurred");
-                Console.WriteLine(ex);
+                Console.WriteLine(ex.Message);
                 if(ex.LoaderExceptions != null && ex.LoaderExceptions.Length > 0)
                 {
                     foreach(var lex in ex.LoaderExceptions)
                     {
                         Console.WriteLine("[-] Loader Exception");
-                        Console.WriteLine(lex);
+                        Console.WriteLine(lex.Message);
                     }
                 }
             }
             catch(Exception ex)
             {
                 Console.WriteLine("[-] Unhandled exception occurred");
-                Console.WriteLine(ex);
+                Console.WriteLine(ex.Message);
             }
         }
 
-            static void RunApp(string[] args)
+        private static void RunApp(String[] args)
         {
-            Assembly assembly = null;
-            if (args.Length >= 1)
+            Boolean list = false;
+            String namespaceName = String.Empty;
+            String className = String.Empty;
+            String methodName = String.Empty;
+            Boolean format = false;
+            Boolean nobanner = false;
+            Boolean type = false;
+            Boolean help = false;
+
+            OptionSet options = new OptionSet() {
+                { "l|list", "List All Namespaces Classes Methods.", v => list = v != null },
+                { "n|namespace=", "List All Namespaces Classes Methods.", v => namespaceName = v },
+                { "c|class=", "List All Namespaces Classes Methods.", v => className = v },
+                { "m|method=", "List All Namespaces Classes Methods.", v => methodName = v },
+                { "f|format", "List Info in RunDotNetDll32 executable format.", v => format = v != null },
+                { "b|nobanner", "Do not display the banner.\nUseful when redirecting directly to a file.", v => nobanner = v != null },
+                { "t|type",  "Assembly Exists in the GAC or Current Directory\n Does not call Assembly.LoadFile", v => type = v != null },
+                { "h|help",  "Display this message and exit", v => help = v != null }
+            };
+
+            List<String> methodAndArgs;
+            try
             {
-                String file = Path.GetFullPath(args[0].Split(',')[0]);
-                if (!File.Exists(file))
-                {
-                    Console.WriteLine("[-] File Not Found");
-                    return;
-                }
-                try
-                {
-                    assembly = Assembly.LoadFile(Path.GetFullPath(args[0].Split(',')[0]));
-                }
-                catch(FileLoadException ex)
-                {
-                    Console.WriteLine("[-] File could not be loaded");
-                    Console.WriteLine(ex);
-                    return;
-                }
-                catch(BadImageFormatException ex)
-                {
-                    Console.WriteLine("[-] File uses incorrect framework version");
-                    Console.WriteLine(ex);
-                    return;
-                }
-                catch(Exception ex)
-                {
-                    Console.WriteLine("[-] Error occured loading file");
-                    Console.WriteLine(ex);
-                    return;
-                }
+                methodAndArgs = options.Parse(args);
             }
-            else
+            catch (OptionException ex)
             {
-                Console.WriteLine("rundotnetdll32.exe assembly.dll,class,method arguments");
-                Console.WriteLine("rundotnetdll32.exe list <namespaces|classes|methods> <namespace> <class>");
+                Console.WriteLine(ex.Message);
                 return;
             }
 
-            if (args.Length <= 2)
+            String file = Path.GetFullPath(methodAndArgs.First().Split(',').First());
+            if (String.IsNullOrEmpty(file) || !File.Exists(file))
             {
-                String[] dllArgs = args[0].Split(',');
+                Console.WriteLine("[-] File Not Found");
+                return;
+            }
+
+            if (!list && methodAndArgs.Count > 0)
+            {
+                String[] dllArgs = methodAndArgs.First().Split(',');
                 if (dllArgs.Length >= 3)
                 {
-                    String nameSpace = dllArgs[1];
-                    String className = dllArgs[2];
-                    String method = dllArgs[3];
+                    namespaceName = dllArgs[1];
+                    className = dllArgs[2];
+                    methodName = dllArgs[3];
                     String[] arguments = new String[0];
-                    if (2 == args.Length)
+                    if (2 == methodAndArgs.Count)
                     {
-                        arguments = args.Skip(1).Take(args.Length - 1).ToArray()[0].Split(',');
+                        arguments = methodAndArgs.Skip(1).Take(methodAndArgs.Count - 1).ToArray().First().Split(',');
                     }
 
-                    Console.WriteLine("----------");
-                    Console.WriteLine("Namespace: {0}\nClass: {1}\nMethod: {2}\nArguments: {3}", 
-                        nameSpace, className, method, String.Join(" ",arguments));
-                    Console.WriteLine("----------");
-
-                    String[] namespaceNames = assembly.GetTypes().Select(t => t.Namespace).Distinct().ToArray(); 
-                    foreach (String space in namespaceNames)
+                    if (!nobanner)
                     {
-                        if (space != nameSpace)
-                        {
-                            continue;
-                        }
-                        try
-                        {
-                            Type type = assembly.GetType(space + "." + className);
-                            MethodInfo methodInfo = type.GetMethod(method);
-                            Console.WriteLine((String)methodInfo.Invoke(null, arguments));
-                        }
-                        catch (Exception error)
-                        {
-                            Console.WriteLine(error);
-                        }
+                        Console.WriteLine("----------");
+                        Console.WriteLine("Namespace: {0}\nClass: {1}\nMethod: {2}\nArguments: {3}",
+                            namespaceName, className, methodName, String.Join(" ", arguments));
+                        Console.WriteLine("----------");
+                    }
+
+                    if (type)
+                    {
+                        TypeLoad(file, namespaceName, className, methodName, arguments);
+                    }
+                    else
+                    {
+                        StdLoad(file, namespaceName, className, methodName, arguments);
                     }
                 }
                 else
                 {
-                    Console.WriteLine("rundotnetdll32.exe assembly.dll,class,method arguments");
+                    Console.WriteLine("One of the following is missing:\n Path, Namespace, Class, Method");
+                    Help(options);
                 }
             }
-            else if (args.Length >= 3 && args[1] == "list")
+            else if (list)
             {
-                String lookup = args[2].ToLower();
+                Assembly assembly = Assembly.LoadFile(file);
 
-                String specificNamespace = null;
-                if (args.Length >= 4)
+                if (!String.IsNullOrEmpty(namespaceName))
                 {
-                    specificNamespace = args[3];
+                    if (!String.IsNullOrEmpty(className))
+                    {
+                        if (!String.IsNullOrEmpty(methodName))
+                        {
+                            ListMethodParameters(assembly, namespaceName, className, methodName);
+                            return;
+                        }
+                        ListClassMethods(assembly, namespaceName, className);
+                        return;
+                    }
+                    ListNamespaceClasses(assembly, namespaceName);
+                    return;
                 }
+                ListAllNamepaces(assembly);
+            }
+        }
 
-                String specificClassname = null;
-                if (args.Length >= 5)
+        #region execute
+        private static void StdLoad(String path, String nameSpace, String className, String method, String[] arguments)
+        {
+            Assembly assembly = null;
+            try
+            {
+                assembly = Assembly.LoadFile(Path.GetFullPath(path));
+            }
+            catch (Exception ex)
+            {
+                if (ex is FileLoadException)
                 {
-                    specificClassname = args[4];
+                    Console.WriteLine("[-] File could not be loaded");
                 }
-
-                if (lookup == "namespaces")
+                else if (ex is BadImageFormatException)
                 {
-                    Namepaces(assembly);
-                }
-                else if ("classes" == lookup && null == specificNamespace)
-                {
-                    Classes(assembly);
-                }
-                else if ("classes" == lookup && null != specificNamespace)
-                {
-                    Classes(assembly, specificNamespace);
-                }
-                else if ("methods" == lookup && null == specificNamespace)
-                {
-                    Methods(assembly);
-                }
-                else if ("methods" == lookup && null != specificNamespace && null == specificClassname)
-                {
-                    Methods(assembly, specificNamespace);
-                }
-                else if ("methods" == lookup && null != specificNamespace && null != specificClassname)
-                {
-                    Methods(assembly, specificNamespace, specificClassname);
+                    Console.WriteLine("[-] File uses incorrect framework version");
                 }
                 else
                 {
-                    Console.WriteLine("rundotnetdll32.exe list <namespaces|classes|methods> <namespace> <class>");
+                    Console.WriteLine("[-] Error occured loading file");
+                }
+                Console.WriteLine(ex);
+                return;
+            }
+
+            String[] namespaceNames = assembly.GetTypes().Select(t => t.Namespace).Distinct().ToArray();
+            foreach (String space in namespaceNames)
+            {
+                if (space != nameSpace)
+                {
+                    continue;
+                }
+                try
+                {
+                    Type type = assembly.GetType(space + "." + className);
+                    MethodInfo methodInfo = type.GetMethod(method);
+                    Console.WriteLine((String)methodInfo.Invoke(null, arguments));
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
                 }
             }
         }
+
+        private static void TypeLoad(String path, String nameSpace, String className, String method, String[] arguments)
+        {
+            AssemblyName assemblyName = null;
+            try
+            {
+                assemblyName = AssemblyName.GetAssemblyName(Path.GetFullPath(path));
+            }
+            catch (Exception ex)
+            {
+                if (ex is FileLoadException)
+                {
+                    Console.WriteLine("[-] File could not be loaded");
+                }
+                else if (ex is BadImageFormatException)
+                {
+                    Console.WriteLine("[-] File uses incorrect framework version");
+                }
+                else
+                {
+                    Console.WriteLine("[-] Error occured loading file");
+                }
+                Console.WriteLine(ex.Message);
+                return;
+            }
+
+            try
+            {
+                String fullClassName = String.Format("{0}.{1}", nameSpace, className);
+                Console.WriteLine(String.Format("{0}, {1}", fullClassName, assemblyName.FullName));
+                Type type = Type.GetType(String.Format("{0}, {1}", fullClassName, assemblyName.FullName));
+                MethodInfo methodInfo = type.GetMethod(method);
+                Console.WriteLine((String)methodInfo.Invoke(null, arguments));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                if (ex is TargetParameterCountException)
+                {
+                    //todo
+                }
+            }
+        }
+        #endregion
 
         #region listProperties
         ////////////////////////////////////////////////////////////////////////////////
         //
         ////////////////////////////////////////////////////////////////////////////////
-        private static void Namepaces(Assembly assembly)
+        private static void ListAllNamepaces(Assembly assembly)
         {
             String[] namespaceNames = assembly.GetTypes().Select(n => n.Namespace).Distinct().ToArray();
             foreach (String space in namespaceNames)
             {
-                Console.WriteLine(space);
+                if (String.IsNullOrEmpty(space))
+                {
+                    continue;
+                }
+                Console.WriteLine("[N] {0}", space);
             }
         }
-
+        
         ////////////////////////////////////////////////////////////////////////////////
         //
         ////////////////////////////////////////////////////////////////////////////////
-        private static void Classes(Assembly assembly)
+        private static void ListNamespaceClasses(Assembly assembly, String specificNamespace)
         {
             String[] namespaceNames = assembly.GetTypes().Select(t => t.Namespace).Distinct().ToArray();
             foreach (String space in namespaceNames)
             {
-                Console.WriteLine(space);
-                try
+                if (String.IsNullOrEmpty(space) || space.ToUpper() != specificNamespace.ToUpper())
                 {
-                    Type[] types = assembly.GetTypes().Where(n => n.Namespace == space).Distinct().ToArray();
-                    foreach (Type t in types)
-                    {
-                        Console.WriteLine("\t{0}", t.Name);
-                    }
+                    continue;
                 }
-                catch(Exception error)
-                {
-                    Console.WriteLine(error);
-                }
-            }
-        }
-
-        ////////////////////////////////////////////////////////////////////////////////
-        //
-        ////////////////////////////////////////////////////////////////////////////////
-        private static void Classes(Assembly assembly, String specificNamespace)
-        {
-            String[] namespaceNames = assembly.GetTypes().Select(t => t.Namespace).Distinct().ToArray();
-            foreach (String space in namespaceNames)
-            {
-                Console.WriteLine(space);
+                Console.WriteLine("[N] {0}", space);
                 try
                 {
                     Type[] types = assembly.GetTypes().Where(n => n.Namespace == specificNamespace).Distinct().ToArray();
                     foreach (Type t in types)
                     {
-                        Console.WriteLine("\t{0}", t.Name);
+                        Console.WriteLine("   [C] {0}", t.Name);
                     }
                 }
-                catch(Exception error)
+                catch(Exception ex)
                 {
-                    Console.WriteLine(error);
+                    Console.WriteLine(ex.Message);
                 }
             }
         }
@@ -229,89 +275,183 @@ namespace rundotnetdll32
         ////////////////////////////////////////////////////////////////////////////////
         //
         ////////////////////////////////////////////////////////////////////////////////
-        private static void Methods(Assembly assembly)
+        private static void ListClassMethods(Assembly assembly, String specificNamespace, String specificClassName)
         {
             String[] namespaceNames = assembly.GetTypes().Select(t => t.Namespace).Distinct().ToArray();
             foreach (String space in namespaceNames)
             {
-                Console.WriteLine(space);
-                try
+                if (String.IsNullOrEmpty(space) || space.ToUpper() != specificNamespace.ToUpper())
                 {
-                    Type[] types = assembly.GetTypes().Where(n => n.Namespace == space).Distinct().ToArray();
-                    foreach (Type className in types)
-                    {
-                        Console.WriteLine("\t{0}", className.Name);
-                        foreach (MethodInfo method in className.GetMethods())
-                        {
-                            Console.WriteLine("\t\t{0}", method.Name);
-                        }
-                    }
+                    continue;
                 }
-                catch(Exception error)
-                {
-                    Console.WriteLine(error);
-                }
-            }
-        }
-
-        ////////////////////////////////////////////////////////////////////////////////
-        //
-        ////////////////////////////////////////////////////////////////////////////////
-        private static void Methods(Assembly assembly, String specificNamespace)
-        {
-            String[] namespaceNames = assembly.GetTypes().Select(t => t.Namespace).Distinct().ToArray();
-            foreach (String space in namespaceNames)
-            {
-                Console.WriteLine(space);
+                Console.WriteLine("[N] {0}", space);
                 try
                 {
                     Type[] types = assembly.GetTypes().Where(n => n.Namespace == specificNamespace).Distinct().ToArray();
                     foreach (Type className in types)
                     {
-                        Console.WriteLine("\t{0}", className.Name);
-                        foreach (MethodInfo method in className.GetMethods())
+                        if (String.IsNullOrEmpty(className.Name) || className.Name.ToUpper() != specificClassName.ToUpper())
                         {
-                            Console.WriteLine("\t\t{0}", method.Name);
+                            continue;
                         }
-                    }
-                }
-                catch(Exception error)
-                {
-                    Console.WriteLine(error);
-                }
-            }
-        }
-
-        ////////////////////////////////////////////////////////////////////////////////
-        //
-        ////////////////////////////////////////////////////////////////////////////////
-        private static void Methods(Assembly assembly, String specificNamespace, String specificClassName)
-        {
-            String[] namespaceNames = assembly.GetTypes().Select(t => t.Namespace).Distinct().ToArray();
-            foreach (String space in namespaceNames)
-            {
-                Console.WriteLine(space);
-                try
-                {
-                    Type[] types = assembly.GetTypes().Where(n => n.Namespace == specificNamespace).Distinct().ToArray();
-                    foreach (Type className in types)
-                    {
                         if (specificClassName == className.Name)
                         {
-                            Console.WriteLine("\t{0}", className.Name);
+                            Console.WriteLine("   [C] {0}", className.Name);
                             foreach (MethodInfo method in className.GetMethods())
                             {
-                                Console.WriteLine("\t\t{0}", method.Name);
+                                Console.WriteLine("      [M] {0}", method.Name);
                             }
                         }
                     }
                 }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+            }
+        }
+
+        ////////////////////////////////////////////////////////////////////////////////
+        //
+        ////////////////////////////////////////////////////////////////////////////////
+        private static void ListMethodParameters(Assembly assembly, String specificNamespace, String specificClassName, String specificMethodName)
+        {
+            String[] namespaceNames = assembly.GetTypes().Select(t => t.Namespace).Distinct().ToArray();
+            foreach (String space in namespaceNames)
+            {
+                if (String.IsNullOrEmpty(space) || space.ToUpper() != specificNamespace.ToUpper())
+                {
+                    continue;
+                }
+                Console.WriteLine("[N] {0}", space);
+                try
+                {
+                    Type[] types = assembly.GetTypes().Where(n => n.Namespace == specificNamespace).Distinct().ToArray();
+                    foreach (Type className in types)
+                    {
+                        if (String.IsNullOrEmpty(className.Name) || className.Name.ToUpper() != specificClassName.ToUpper())
+                        {
+                            continue;
+                        }
+                        if (specificClassName == className.Name)
+                        {
+                            Console.WriteLine("   [C] {0}", className.Name);
+                            foreach (MethodInfo method in className.GetMethods())
+                            {
+                                if (String.IsNullOrEmpty(method.Name) || method.Name.ToUpper() != specificMethodName.ToUpper())
+                                {
+                                    continue;
+                                }
+                                Console.WriteLine("      [M] {0}", method.Name);
+                                foreach (ParameterInfo parameter in method.GetParameters())
+                                {
+                                    Console.WriteLine("         [P] {0,-2} {1,-15} {2}", parameter.Position, parameter.Name, parameter.ParameterType);
+                                }
+
+                                Console.WriteLine("         [R] {0,-2} {1,-15} {2}", "0", method.ReturnParameter, method.ReturnType);
+
+                            }
+
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+            }
+        }
+        /*
+        ////////////////////////////////////////////////////////////////////////////////
+        //
+        ////////////////////////////////////////////////////////////////////////////////
+        private static void ListAllClasses(Assembly assembly)
+        {
+            String[] namespaceNames = assembly.GetTypes().Select(t => t.Namespace).Distinct().ToArray();
+            foreach (String space in namespaceNames)
+            {
+                Console.WriteLine("[N] {0}", space);
+                try
+                {
+                    Type[] types = assembly.GetTypes().Where(n => n.Namespace == space).Distinct().ToArray();
+                    foreach (Type t in types)
+                    {
+                        Console.WriteLine("   [C] {0}", t.Name);
+                    }
+                }
+                catch(Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+            }
+        }
+        */
+        /*
+        ////////////////////////////////////////////////////////////////////////////////
+        //
+        ////////////////////////////////////////////////////////////////////////////////
+        private static void ListAllMethods(Assembly assembly)
+        {
+            String[] namespaceNames = assembly.GetTypes().Select(t => t.Namespace).Distinct().ToArray();
+            foreach (String space in namespaceNames)
+            {
+                Console.WriteLine("[N] {0}", space);
+                try
+                {
+                    Type[] types = assembly.GetTypes().Where(n => n.Namespace == space).Distinct().ToArray();
+                    foreach (Type className in types)
+                    {
+                        Console.WriteLine("\t[C] {0}", className.Name);
+                        foreach (MethodInfo method in className.GetMethods())
+                        {
+                            Console.WriteLine("\t\t[M] {0}", method.Name);
+                        }
+                    }
+                }
                 catch(Exception error)
                 {
                     Console.WriteLine(error);
                 }
             }
         }
+        */ 
+        /*
+        ////////////////////////////////////////////////////////////////////////////////
+        //
+        ////////////////////////////////////////////////////////////////////////////////
+        private static void ListNamespaceMethods(Assembly assembly, String specificNamespace)
+        {
+            String[] namespaceNames = assembly.GetTypes().Select(t => t.Namespace).Distinct().ToArray();
+            foreach (String space in namespaceNames)
+            {
+                Console.WriteLine("[N] {0}", space);
+                try
+                {
+                    Type[] types = assembly.GetTypes().Where(n => n.Namespace == specificNamespace).Distinct().ToArray();
+                    foreach (Type className in types)
+                    {
+                        Console.WriteLine("\t[C] {0}", className.Name);
+                        foreach (MethodInfo method in className.GetMethods())
+                        {
+                            Console.WriteLine("\t\t[M] {0}", method.Name);
+                        }
+                    }
+                }
+                catch(Exception error)
+                {
+                    Console.WriteLine(error);
+                }
+            }
+        }
+        */
         #endregion
+
+        private static void Help(OptionSet options)
+        {
+            Console.WriteLine("rundotnetdll32.exe assembly.dll,class,method arguments");
+            Console.WriteLine("rundotnetdll32.exe -nobanner assembly.dll,class,method arguments > output.txt");
+            Console.WriteLine("rundotnetdll32.exe -list <namespaces|classes|methods> <namespace> <class>");
+            return;
+        }
     }
 }
