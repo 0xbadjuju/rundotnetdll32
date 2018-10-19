@@ -45,7 +45,9 @@ namespace rundotnetdll32
             String methodName = String.Empty;
             Boolean format = false;
             Boolean nobanner = false;
+            Boolean interactive = false;
             Boolean type = false;
+            String delimiter = ",";
             Boolean help = false;
 
             OptionSet options = new OptionSet() {
@@ -55,7 +57,9 @@ namespace rundotnetdll32
                 { "m|method=", "List All Namespaces Classes Methods.", v => methodName = v },
                 { "f|format", "List Info in RunDotNetDll32 executable format.", v => format = v != null },
                 { "b|nobanner", "Do not display the banner.\nUseful when redirecting directly to a file.", v => nobanner = v != null },
-                { "t|type",  "Assembly Exists in the GAC or Current Directory\n Does not call Assembly.LoadFile", v => type = v != null },
+                { "i|interactive", "Interact with the Assembly in a semi interactive shell", v => interactive = v != null },
+                { "t|type", "Assembly Exists in the GAC or Current Directory\n Does not call Assembly.LoadFile", v => type = v != null },
+                { "d|delimiter=", "Alternate delimeter to use", v => delimiter = v },
                 { "h|help",  "Display this message and exit", v => help = v != null }
             };
 
@@ -70,16 +74,22 @@ namespace rundotnetdll32
                 return;
             }
 
-            String file = Path.GetFullPath(methodAndArgs.First().Split(',').First());
+            String file = Path.GetFullPath(methodAndArgs.First().Split(new String[] { delimiter }, StringSplitOptions.RemoveEmptyEntries).First());
             if (String.IsNullOrEmpty(file) || !File.Exists(file))
             {
                 Console.WriteLine("[-] File Not Found");
                 return;
             }
 
+            if (interactive)
+            {
+                Interactive i = new Interactive(file);
+                i.Run();
+            }
+
             if (!list && methodAndArgs.Count > 0)
             {
-                String[] dllArgs = methodAndArgs.First().Split(',');
+                String[] dllArgs = methodAndArgs.First().Split(new String[] { delimiter }, StringSplitOptions.RemoveEmptyEntries);
                 if (dllArgs.Length >= 3)
                 {
                     namespaceName = dllArgs[1];
@@ -88,7 +98,7 @@ namespace rundotnetdll32
                     String[] arguments = new String[0];
                     if (2 == methodAndArgs.Count)
                     {
-                        arguments = methodAndArgs.Skip(1).Take(methodAndArgs.Count - 1).ToArray().First().Split(',');
+                        arguments = methodAndArgs.Skip(1).Take(methodAndArgs.Count - 1).ToArray().First().Split(new String[] { delimiter }, StringSplitOptions.RemoveEmptyEntries);
                     }
 
                     if (!nobanner)
@@ -345,7 +355,7 @@ namespace rundotnetdll32
                                 Console.WriteLine("      [M] {0}", method.Name);
                                 foreach (ParameterInfo parameter in method.GetParameters())
                                 {
-                                    Console.WriteLine("         [P] {0,-2} {1,-15} {2}", parameter.Position, parameter.Name, parameter.ParameterType);
+                                    Console.WriteLine("     [P] {0,-2} {1,-15} {2}", parameter.Position, parameter.Name, parameter.ParameterType);
                                 }
 
                                 Console.WriteLine("         [R] {0,-2} {1,-15} {2}", "0", method.ReturnParameter, method.ReturnType);
