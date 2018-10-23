@@ -84,7 +84,8 @@ namespace rundotnetdll32
             if (interactive)
             {
                 Interactive i = new Interactive(file);
-                i.Run();
+                i.Execute();
+                return;
             }
 
             if (!list && methodAndArgs.Count > 0)

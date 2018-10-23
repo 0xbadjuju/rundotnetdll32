@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.IO;
 using System.Linq;
@@ -10,8 +9,8 @@ namespace rundotnetdll32
 {
     class Interactive
     {
-        String file;
-        Assembly assembly;
+        AppDomain appDomain = null;
+        Assembly assembly = null;
         Boolean execute = true;
 
         String namespaceName = String.Empty;
@@ -22,73 +21,59 @@ namespace rundotnetdll32
 
         internal Interactive(String file)
         {
-            this.file = file;
+            assembly = Assembly.LoadFile(file);
         }
 
-        internal Boolean Run()
-        {
-            try
+        internal void Execute()
+        { 
+            while (execute)
             {
-                assembly = Assembly.LoadFile(Path.GetFullPath(file));
-
-                var stack = new Stack<String>();
-                stack.Push(assembly.FullName);
-
-                while (execute)
+                var prompt = new StringBuilder();
+                prompt.Append(assembly.GetName().Name);
+                if (!String.IsNullOrEmpty(namespaceName))
                 {
-                    var prompt = new StringBuilder();
-                    prompt.Append(assembly.GetName().Name);
-                    if (!String.IsNullOrEmpty(namespaceName))
+                    prompt.Append(@"\" + namespaceName);
+                    if (!String.IsNullOrEmpty(className))
                     {
-                        prompt.Append(@"\" + namespaceName);
-                        if (!String.IsNullOrEmpty(className))
+                        prompt.Append(@"\" + className);
+                        if (!String.IsNullOrEmpty(methodName))
                         {
-                            prompt.Append(@"\" + className);
-                            if (!String.IsNullOrEmpty(methodName))
-                            {
-                                prompt.Append(@"\" + methodName);
-                            }
+                            prompt.Append(@"\" + methodName);
                         }
                     }
+                }
 
-                    Console.Write("({0}) > ", prompt.ToString());
-                    String input = Console.ReadLine();
-                    String action = NextItem(ref input).ToLower().Trim();
-                    switch (action)
-                    {
-                        case ("use"):
-                            Use(input);
-                            break;
-                        case ("options"):
-                            Options(input);
-                            break;
-                        case ("set"):
-                            Set(input);
-                            break;
-                        case ("execute"):
-                            Type type = assembly.GetType(namespaceName + "." + className);
-                            MethodInfo methodInfo = type.GetMethod(methodName);
-                            Object[] args = new Object[parameters.Count];
-                            for (Int32 i = 0; i < parameters.Count; i++)
-                                args[i] = parameters[i];                                
-                            Console.WriteLine((String)methodInfo.Invoke(null, args));
-                            break;
-                        case ("exit"):
-                            execute = false;
-                            break;
-                        default:
-                            Console.WriteLine("Unknown Option");
-                            Console.WriteLine("use set options execute\n");
-                            break;
-                    }
+                Console.Write("({0}) > ", prompt.ToString());
+                String input = Console.ReadLine();
+                String action = NextItem(ref input).ToLower().Trim();
+                switch (action)
+                {
+                    case ("execute"):
+                        Type type = assembly.GetType(namespaceName + "." + className);
+                        MethodInfo methodInfo = type.GetMethod(methodName);
+                        Object[] args = new Object[parameters.Count];
+                        for (Int32 i = 0; i < parameters.Count; i++)
+                            args[i] = parameters[i];
+                        Console.WriteLine((String)methodInfo.Invoke(null, args));
+                        break;
+                    case ("options"):
+                        Options(input);
+                        break;
+                    case ("use"):
+                        Use(input);
+                        break;
+                    case ("set"):
+                        Set(input);
+                        break;
+                    case ("exit"):
+                        execute = false;
+                        break;
+                    default:
+                        Console.WriteLine("Unknown Option");
+                        Console.WriteLine("use set options execute\n");
+                        break;
                 }
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-                return false;
-            }
-            return true;
         }
 
         private void Use(String input)
